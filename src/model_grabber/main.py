@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from pathlib import Path
 from typing import Final
 
+from dotenv import load_dotenv
 from huggingface_hub import snapshot_download
-from huggingface_hub.utils import HfHubHTTPError
+from huggingface_hub.errors import HfHubHTTPError
 
 DEFAULT_ROOT: Final[Path] = Path('/data/seth/models')
+DEFAULT_DOTENV_PATH: Final[Path] = Path('.env')
 
 PRESET_MODELS: Final[dict[str, str]] = {
     'kimi-k2.5': 'moonshotai/Kimi-K2.5',
@@ -40,7 +43,13 @@ def build_parser() -> argparse.ArgumentParser:
         '--token',
         type=str,
         default=None,
-        help=('Optional Hugging Face token. If omitted, huggingface_hub will use your cached login/token.'),
+        help=('Optional Hugging Face token. Overrides HF_TOKEN from the environment or .env.'),
+    )
+    parser.add_argument(
+        '--env-file',
+        type=Path,
+        default=DEFAULT_DOTENV_PATH,
+        help='Path to .env file. Default: .env',
     )
     parser.add_argument(
         '--revision',
@@ -52,18 +61,13 @@ def build_parser() -> argparse.ArgumentParser:
         '--allow-pattern',
         action='append',
         default=None,
-        help=('Optional glob pattern to include. May be passed multiple times.'),
+        help='Optional glob pattern to include. May be passed multiple times.',
     )
     parser.add_argument(
         '--ignore-pattern',
         action='append',
         default=None,
-        help=('Optional glob pattern to exclude. May be passed multiple times.'),
-    )
-    parser.add_argument(
-        '--local-dir-use-symlinks',
-        action='store_true',
-        help=('Use symlinks when supported by huggingface_hub/local filesystem.'),
+        help='Optional glob pattern to exclude. May be passed multiple times.',
     )
     return parser
 
@@ -78,6 +82,17 @@ def safe_output_dir(root: Path, repo_id: str) -> Path:
     return root / repo_id.replace('/', '--')
 
 
+def load_token(env_file: Path, cli_token: str | None) -> str | None:
+    """Load the Hugging Face token from CLI or environment."""
+    if env_file.is_file():
+        load_dotenv(dotenv_path=env_file, override=False)
+
+    if cli_token:
+        return cli_token
+
+    return os.getenv('HF_TOKEN')
+
+
 def download_model(
     repo_id: str,
     root: Path,
@@ -85,7 +100,6 @@ def download_model(
     revision: str | None,
     allow_patterns: list[str] | None,
     ignore_patterns: list[str] | None,
-    use_symlinks: bool,
 ) -> Path:
     """Download a model snapshot and return its local directory."""
     output_dir = safe_output_dir(root=root, repo_id=repo_id)
@@ -95,12 +109,10 @@ def download_model(
         repo_id=repo_id,
         repo_type='model',
         local_dir=output_dir,
-        local_dir_use_symlinks=use_symlinks,
         token=token,
         revision=revision,
         allow_patterns=allow_patterns,
         ignore_patterns=ignore_patterns,
-        resume_download=True,
     )
 
     return output_dir
@@ -114,22 +126,25 @@ def main() -> int:
     root: Path = args.root.expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
 
+    env_file: Path = args.env_file.expanduser().resolve()
+    token = load_token(env_file=env_file, cli_token=args.token)
+
     exit_code = 0
 
     for raw_model in args.models:
         repo_id = resolve_model_name(raw_model)
+        destination_dir = safe_output_dir(root, repo_id)
 
-        print(f'Downloading {repo_id} into {safe_output_dir(root, repo_id)}')
+        print(f'Downloading {repo_id} into {destination_dir}')
 
         try:
             destination = download_model(
                 repo_id=repo_id,
                 root=root,
-                token=args.token,
+                token=token,
                 revision=args.revision,
                 allow_patterns=args.allow_pattern,
                 ignore_patterns=args.ignore_pattern,
-                use_symlinks=args.local_dir_use_symlinks,
             )
         except HfHubHTTPError as exc:
             print(f'Failed to download {repo_id}: {exc}', file=sys.stderr)
