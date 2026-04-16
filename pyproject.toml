@@ -1,0 +1,27 @@
+[project]
+name = "model-grabber"
+version = "0.1.0"
+description = "Simple CLI for downloading Hugging Face models to /data/seth/models"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "huggingface-hub>=0.34.0,<1.0.0",
+]
+
+[project.scripts]
+model-grabber = "model_grabber.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/model_grabber"]
+
+[dependency-groups]
+dev = [
+    "deptry>=0.25.1",
+    "pytest>=9.0.3",
+    "ruff>=0.15.10",
+    "twine>=6.2.0",
+]
