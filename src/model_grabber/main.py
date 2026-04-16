@@ -3,67 +3,84 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from pathlib import Path
 from typing import Final
 
+from dotenv import load_dotenv
 from huggingface_hub import snapshot_download
-from huggingface_hub.utils import HfHubHTTPError
+from huggingface_hub.errors import HfHubHTTPError
 
-DEFAULT_ROOT: Final[Path] = Path('/data/seth/models')
+DEFAULT_ROOT: Final[Path] = Path("/data/seth/models")
+DEFAULT_DOTENV_PATH: Final[Path] = Path(".env")
 
 PRESET_MODELS: Final[dict[str, str]] = {
-    'kimi-k2.5': 'moonshotai/Kimi-K2.5',
-    'glm-5.1': 'zai-org/GLM-5.1',
+    "kimi-k2.5": "moonshotai/Kimi-K2.5",
+    "glm-5.1": "zai-org/GLM-5.1",
 }
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the command line argument parser."""
     parser = argparse.ArgumentParser(
-        prog='model-grabber',
-        description=('Download one or more Hugging Face model repos into a local folder.'),
+        prog="model-grabber",
+        description=(
+            "Download one or more Hugging Face model repos into a local folder."
+        ),
     )
     parser.add_argument(
-        'models',
-        nargs='+',
-        help=('Model repo IDs or preset names. Examples: kimi-k2.5 glm-5.1 Qwen/Qwen3-8B'),
+        "models",
+        nargs="+",
+        help=(
+            "Model repo IDs or preset names. "
+            "Examples: kimi-k2.5 glm-5.1 Qwen/Qwen3-8B"
+        ),
     )
     parser.add_argument(
-        '--root',
+        "--root",
         type=Path,
         default=DEFAULT_ROOT,
-        help=f'Base directory for downloads. Default: {DEFAULT_ROOT}',
+        help=f"Base directory for downloads. Default: {DEFAULT_ROOT}",
     )
     parser.add_argument(
-        '--token',
+        "--token",
         type=str,
         default=None,
-        help=('Optional Hugging Face token. If omitted, huggingface_hub will use your cached login/token.'),
+        help=(
+            "Optional Hugging Face token. "
+            "Overrides HF_TOKEN from the environment or .env."
+        ),
     )
     parser.add_argument(
-        '--revision',
+        "--env-file",
+        type=Path,
+        default=DEFAULT_DOTENV_PATH,
+        help="Path to .env file. Default: .env",
+    )
+    parser.add_argument(
+        "--revision",
         type=str,
         default=None,
-        help='Optional branch, tag, or commit hash to download.',
+        help="Optional branch, tag, or commit hash to download.",
     )
     parser.add_argument(
-        '--allow-pattern',
-        action='append',
+        "--allow-pattern",
+        action="append",
         default=None,
-        help=('Optional glob pattern to include. May be passed multiple times.'),
+        help="Optional glob pattern to include. May be passed multiple times.",
     )
     parser.add_argument(
-        '--ignore-pattern',
-        action='append',
+        "--ignore-pattern",
+        action="append",
         default=None,
-        help=('Optional glob pattern to exclude. May be passed multiple times.'),
+        help="Optional glob pattern to exclude. May be passed multiple times.",
     )
     parser.add_argument(
-        '--local-dir-use-symlinks',
-        action='store_true',
-        help=('Use symlinks when supported by huggingface_hub/local filesystem.'),
+        "--local-dir-use-symlinks",
+        action="store_true",
+        help="Use symlinks when supported by huggingface_hub/local filesystem.",
     )
     return parser
 
@@ -75,7 +92,18 @@ def resolve_model_name(model_name: str) -> str:
 
 def safe_output_dir(root: Path, repo_id: str) -> Path:
     """Create a predictable local directory for a repo ID."""
-    return root / repo_id.replace('/', '--')
+    return root / repo_id.replace("/", "--")
+
+
+def load_token(env_file: Path, cli_token: str | None) -> str | None:
+    """Load the Hugging Face token from CLI or environment."""
+    if env_file.is_file():
+        load_dotenv(dotenv_path=env_file, override=False)
+
+    if cli_token:
+        return cli_token
+
+    return os.getenv("HF_TOKEN")
 
 
 def download_model(
@@ -93,7 +121,7 @@ def download_model(
 
     snapshot_download(
         repo_id=repo_id,
-        repo_type='model',
+        repo_type="model",
         local_dir=output_dir,
         local_dir_use_symlinks=use_symlinks,
         token=token,
@@ -114,39 +142,43 @@ def main() -> int:
     root: Path = args.root.expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
 
+    env_file: Path = args.env_file.expanduser().resolve()
+    token = load_token(env_file=env_file, cli_token=args.token)
+
     exit_code = 0
 
     for raw_model in args.models:
         repo_id = resolve_model_name(raw_model)
+        destination_dir = safe_output_dir(root, repo_id)
 
-        print(f'Downloading {repo_id} into {safe_output_dir(root, repo_id)}')
+        print(f"Downloading {repo_id} into {destination_dir}")
 
         try:
             destination = download_model(
                 repo_id=repo_id,
                 root=root,
-                token=args.token,
+                token=token,
                 revision=args.revision,
                 allow_patterns=args.allow_pattern,
                 ignore_patterns=args.ignore_pattern,
                 use_symlinks=args.local_dir_use_symlinks,
             )
         except HfHubHTTPError as exc:
-            print(f'Failed to download {repo_id}: {exc}', file=sys.stderr)
+            print(f"Failed to download {repo_id}: {exc}", file=sys.stderr)
             exit_code = 1
             continue
-        except Exception as exc:
+        except Exception as exc: 
             print(
-                f'Unexpected error while downloading {repo_id}: {exc}',
+                f"Unexpected error while downloading {repo_id}: {exc}",
                 file=sys.stderr,
             )
             exit_code = 1
             continue
 
-        print(f'Finished: {repo_id} -> {destination}')
+        print(f"Finished: {repo_id} -> {destination}")
 
     return exit_code
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())
