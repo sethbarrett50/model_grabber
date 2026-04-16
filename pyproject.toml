@@ -1,12 +1,13 @@
 [project]
 name = "model-grabber"
-version = "0.2.0"
+version = "0.3.0"
 description = "Simple CLI for downloading Hugging Face models to /data/seth/models"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
   "huggingface-hub>=1.8.0,<2.0.0",
   "python-dotenv>=1.0.1,<2.0.0",
+  "pydantic>=2.11.0,<3.0.0",
 ]
 
 [project.scripts]
