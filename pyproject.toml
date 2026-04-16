@@ -5,7 +5,7 @@ description = "Simple CLI for downloading Hugging Face models to /data/seth/mode
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-  "huggingface-hub>=0.34.0,<1.0.0",
+  "huggingface-hub>=1.8.0,<2.0.0",
   "python-dotenv>=1.0.1,<2.0.0",
 ]
 
