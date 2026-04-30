@@ -24,7 +24,7 @@ packages = ["src/model_grabber"]
 dev = [
     "deptry>=0.25.1",
     "pytest>=9.0.3",
-    "ruff>=0.15.10",
+    "ruff>=0.15.11",
     "twine>=6.2.0",
 ]
 
