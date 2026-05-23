@@ -1,6 +1,6 @@
 [project]
 name = "model-grabber"
-version = "0.3.3"
+version = "0.3.4"
 description = "Simple CLI for downloading Hugging Face models to /data/seth/models"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -22,10 +22,10 @@ packages = ["src/model_grabber"]
 
 [dependency-groups]
 dev = [
-    "deptry>=0.25.1",
-    "pytest>=9.0.3",
-    "ruff>=0.15.11",
-    "twine>=6.2.0",
+    "deptry>=0.25.1,<1",
+    "pytest>=9.0.3,<10",
+    "ruff>=0.15.11,<1",
+    "twine>=6.2.0,<7",
 ]
 
 [tool.deptry]
