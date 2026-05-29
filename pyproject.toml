@@ -1,6 +1,6 @@
 [project]
 name = "model-grabber"
-version = "0.3.4"
+version = "0.3.5"
 description = "Simple CLI for downloading Hugging Face models to /data/seth/models"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
